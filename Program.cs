@@ -100,8 +100,6 @@
 
 
 
-
-
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -153,7 +151,6 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Add application services (assuming this extension method exists)
 builder.Services.AddApplicationServices();
 
 // CORS Configuration
@@ -221,22 +218,8 @@ if (string.IsNullOrEmpty(connectionString))
     throw new InvalidOperationException("DefaultConnection string is missing in appsettings.json");
 }
 
-// Register SqliteConnectionFactory with connection string
-//builder.Services.AddSingleton(new SqliteConnectionFactory(connectionString));
-
-builder.Services.AddSingleton<SqliteConnectionFactory>(provider =>
-{
-    var config = provider.GetRequiredService<IConfiguration>();
-    var connectionString = config.GetConnectionString("DefaultConnection");
-    return new SqliteConnectionFactory(connectionString);
-});
+builder.Services.AddSingleton<SqliteConnectionFactory>(_ => new SqliteConnectionFactory(connectionString));
 builder.Services.AddScoped<DatabaseInitializer>();
-
-// Uncomment these services as you implement them
-// builder.Services.AddScoped<TokenService>();
-// builder.Services.AddScoped<AuthService>();
-// builder.Services.AddScoped<WeatherService>();
-// builder.Services.AddScoped<ChatService>();
 
 var app = builder.Build();
 

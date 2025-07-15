@@ -11,7 +11,7 @@ namespace WeatherApp.Api.Extensions
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
             // Database
-            services.AddSingleton<SqliteConnectionFactory>();
+            //services.AddSingleton<SqliteConnectionFactory>();
 
             // Repositories
             services.AddScoped<IUserRepository, UserRepository>();
