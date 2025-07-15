@@ -2,6 +2,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 
 WORKDIR /app
+ENV ASPNETCORE_URLS=http://+:5000
 
 # Copy everything
 COPY . .
