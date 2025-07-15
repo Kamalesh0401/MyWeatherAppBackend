@@ -1,6 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WeatherApp.Api.DTOs;
-using WeatherApp.Api.Services;
+using WeatherApp.Api.Core.DTOs;
+using WeatherApp.Api.Core.Interfaces.Services;
 
 namespace WeatherApp.Api.Controllers
 {
@@ -8,101 +9,63 @@ namespace WeatherApp.Api.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly AuthService _authService;
+        private readonly IAuthService _authService;
 
-        public AuthController(AuthService authService)
+        public AuthController(IAuthService authService)
         {
             _authService = authService;
         }
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
-            {
-                return BadRequest(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Username and password are required"
-                });
-            }
+            var response = await _authService.LoginAsync(request);
 
-            var (success, token, user) = await _authService.LoginAsync(request.Username, request.Password);
+            if (!response.Success)
+                return BadRequest(response);
 
-            if (!success)
-            {
-                return Unauthorized(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Invalid username or password"
-                });
-            }
-
-            return Ok(new AuthResponse
-            {
-                Success = true,
-                Token = token,
-                Message = "Login successful",
-                User = new UserInfo
-                {
-                    Id = user!.Id,
-                    Username = user.Username,
-                    Email = user.Email
-                }
-            });
+            return Ok(response);
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+        public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.Username) ||
-                string.IsNullOrWhiteSpace(request.Email) ||
-                string.IsNullOrWhiteSpace(request.Password))
-            {
-                return BadRequest(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Username, email, and password are required"
-                });
-            }
+            var response = await _authService.RegisterAsync(request);
 
-            var (success, token, user) = await _authService.RegisterAsync(request.Username, request.Email, request.Password);
+            if (!response.Success)
+                return BadRequest(response);
 
-            if (!success)
-            {
-                return Conflict(new AuthResponse
-                {
-                    Success = false,
-                    Message = "Username already exists"
-                });
-            }
-
-            return Ok(new AuthResponse
-            {
-                Success = true,
-                Token = token,
-                Message = "Registration successful",
-                User = new UserInfo
-                {
-                    Id = user!.Id,
-                    Username = user.Username,
-                    Email = user.Email
-                }
-            });
+            return Ok(response);
         }
 
-        [HttpGet("profile")]
-        public IActionResult GetProfile()
+        [HttpPost("refresh")]
+        public async Task<ActionResult<AuthResponse>> RefreshToken([FromBody] string refreshToken)
         {
-            var userId = HttpContext.Items["UserId"] as int?;
-            var username = HttpContext.Items["Username"] as string;
+            var response = await _authService.RefreshTokenAsync(refreshToken);
 
-            if (userId == null || username == null)
-            {
-                return Unauthorized(new { message = "Authentication required" });
-            }
+            if (!response.Success)
+                return BadRequest(response);
 
-            return Ok(new { UserId = userId, Username = username });
+            return Ok(response);
+        }
+
+        [HttpPost("revoke")]
+        [Authorize]
+        public async Task<ActionResult> RevokeToken([FromBody] string refreshToken)
+        {
+            var success = await _authService.RevokeTokenAsync(refreshToken);
+
+            if (!success)
+                return BadRequest("Failed to revoke token");
+
+            return Ok(new { message = "Token revoked successfully" });
+        }
+
+        [HttpPost("validate")]
+        public async Task<ActionResult<bool>> ValidateToken([FromBody] string token)
+        {
+            var isValid = await _authService.ValidateTokenAsync(token);
+            return Ok(new { isValid });
         }
     }
 }

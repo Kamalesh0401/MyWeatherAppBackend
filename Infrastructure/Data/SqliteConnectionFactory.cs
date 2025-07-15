@@ -1,6 +1,6 @@
 ﻿using System.Data.SQLite;
 
-namespace WeatherApp.Api.Data
+namespace MyWeatherApp.Infrastructure.Data
 {
     public class SqliteConnectionFactory
     {

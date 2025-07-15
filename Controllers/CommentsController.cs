@@ -1,97 +1,100 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WeatherApp.Api.DTOs;
-using WeatherApp.Api.Models;
-using WeatherApp.Api.Services;
+using WeatherApp.Api.Core.DTOs;
+using WeatherApp.Api.Core.Interfaces.Services;
+using System.Security.Claims;
 
 namespace WeatherApp.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class CommentsController : ControllerBase
+    [Authorize]
+    public class CommentController : ControllerBase
     {
-        private readonly DatabaseService _databaseService;
+        private readonly ICommentService _commentService;
 
-        public CommentsController(DatabaseService databaseService)
+        public CommentController(ICommentService commentService)
         {
-            _databaseService = databaseService;
+            _commentService = commentService;
         }
 
-        [HttpGet("{location}")]
-        public async Task<IActionResult> GetComments(string location)
+        [HttpGet("location/{location}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<List<CommentResponse>>> GetCommentsByLocation(
+            string location,
+            [FromQuery] int limit = 50,
+            [FromQuery] int offset = 0)
         {
-            if (string.IsNullOrWhiteSpace(location))
-            {
-                return BadRequest("Location is required");
-            }
+            var comments = await _commentService.GetCommentsByLocationAsync(location, limit, offset);
+            return Ok(comments);
+        }
 
-            var comments = await _databaseService.GetCommentsByLocationAsync(location);
-            var commentResponses = comments.Select(c => new CommentResponse
-            {
-                Id = c.Id,
-                Username = c.Username,
-                LocationName = c.LocationName,
-                Content = c.Content,
-                CreatedAt = c.CreatedAt
-            }).ToList();
+        [HttpGet("location/{location}/count")]
+        [AllowAnonymous]
+        public async Task<ActionResult<int>> GetCommentCountByLocation(string location)
+        {
+            var count = await _commentService.GetCommentCountByLocationAsync(location);
+            return Ok(new { count });
+        }
 
-            return Ok(commentResponses);
+        [HttpGet("user")]
+        public async Task<ActionResult<List<CommentResponse>>> GetCommentsByUser(
+            [FromQuery] int limit = 50,
+            [FromQuery] int offset = 0)
+        {
+            var userId = GetCurrentUserId();
+            var comments = await _commentService.GetCommentsByUserAsync(userId, limit, offset);
+            return Ok(comments);
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateComment([FromBody] CommentRequest request)
+        public async Task<ActionResult<CommentResponse>> CreateComment(CreateCommentRequest request)
         {
-            var userId = HttpContext.Items["UserId"] as int?;
-            var username = HttpContext.Items["Username"] as string;
+            var userId = GetCurrentUserId();
+            var username = GetCurrentUsername();
 
-            if (userId == null || username == null)
-            {
-                return Unauthorized(new { message = "Authentication required" });
-            }
+            var comment = await _commentService.CreateCommentAsync(userId, username, request);
+            if (comment == null)
+                return BadRequest("Failed to create comment");
 
-            if (string.IsNullOrWhiteSpace(request.LocationName) || string.IsNullOrWhiteSpace(request.Content))
-            {
-                return BadRequest("Location and content are required");
-            }
-
-            var comment = new Comment
-            {
-                UserId = userId.Value,
-                Username = username,
-                LocationName = request.LocationName,
-                Content = request.Content,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            var createdComment = await _databaseService.CreateCommentAsync(comment);
-            if (createdComment == null)
-            {
-                return StatusCode(500, "Failed to create comment");
-            }
-
-            var response = new CommentResponse
-            {
-                Id = createdComment.Id,
-                Username = createdComment.Username,
-                LocationName = createdComment.LocationName,
-                Content = createdComment.Content,
-                CreatedAt = createdComment.CreatedAt
-            };
-
-            return CreatedAtAction(nameof(GetComments), new { location = request.LocationName }, response);
+            return CreatedAtAction(nameof(GetCommentsByLocation),
+                new { location = comment.LocationName }, comment);
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteComment(int id)
+        [HttpPut("{commentId}")]
+        public async Task<ActionResult<CommentResponse>> UpdateComment(int commentId, UpdateCommentRequest request)
         {
-            var userId = HttpContext.Items["UserId"] as int?;
-            if (userId == null)
-            {
-                return Unauthorized(new { message = "Authentication required" });
-            }
+            var userId = GetCurrentUserId();
+            var comment = await _commentService.UpdateCommentAsync(commentId, userId, request);
 
-            // In a real app, you'd verify the user owns this comment before deleting
-            // For demo purposes, we'll allow any authenticated user to delete
-            return Ok(new { message = "Comment deletion not implemented in this demo" });
+            if (comment == null)
+                return NotFound();
+
+            return Ok(comment);
+        }
+
+        [HttpDelete("{commentId}")]
+        public async Task<ActionResult> DeleteComment(int commentId)
+        {
+            var userId = GetCurrentUserId();
+            var success = await _commentService.DeleteCommentAsync(commentId, userId);
+
+            if (!success)
+                return NotFound();
+
+            return Ok(new { message = "Comment deleted successfully" });
+        }
+
+        private int GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            return int.Parse(userIdClaim.Value);
+        }
+
+        private string GetCurrentUsername()
+        {
+            var usernameClaim = User.FindFirst(ClaimTypes.Name);
+            return usernameClaim.Value;
         }
     }
 }

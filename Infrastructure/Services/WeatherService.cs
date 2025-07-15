@@ -1,22 +1,24 @@
 ﻿using Newtonsoft.Json;
-using WeatherApp.Api.DTOs;
-using WeatherApp.Api.Models;
+using WeatherApp.Api.Core.DTOs;
+using WeatherApp.Api.Core.Interfaces.Services;
 
-namespace WeatherApp.Api.Services
+namespace WeatherApp.Api.Infrastructure.Services
 {
-    public class WeatherService
+    public class WeatherService : IWeatherService
     {
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
         private readonly string _apiKey;
         private readonly string _baseUrl;
+        private readonly ILogger<WeatherService> _logger;
 
-        public WeatherService(HttpClient httpClient, IConfiguration configuration)
+        public WeatherService(HttpClient httpClient, IConfiguration configuration, ILogger<WeatherService> logger)
         {
             _httpClient = httpClient;
             _configuration = configuration;
-            _apiKey = _configuration["WeatherApiKey"] ?? "";
-            _baseUrl = _configuration["WeatherApiBaseUrl"] ?? "";
+            _logger = logger;
+            _apiKey = _configuration["WeatherApiKey"] ?? throw new InvalidOperationException("WeatherApiKey not configured");
+            _baseUrl = _configuration["WeatherApiBaseUrl"] ?? throw new InvalidOperationException("WeatherApiBaseUrl not configured");
         }
 
         public async Task<WeatherResponse?> GetCurrentWeatherAsync(string location)
@@ -26,6 +28,8 @@ namespace WeatherApp.Api.Services
                 var url = $"{_baseUrl}/weather?q={location}&appid={_apiKey}&units=metric";
                 var response = await _httpClient.GetStringAsync(url);
                 var weatherData = JsonConvert.DeserializeObject<dynamic>(response);
+
+                if (weatherData == null) return null;
 
                 return new WeatherResponse
                 {
@@ -39,8 +43,9 @@ namespace WeatherApp.Api.Services
                     DateTime = DateTime.UtcNow
                 };
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error getting current weather for location: {Location}", location);
                 return null;
             }
         }
@@ -52,6 +57,8 @@ namespace WeatherApp.Api.Services
                 var url = $"{_baseUrl}/forecast?q={location}&appid={_apiKey}&units=metric";
                 var response = await _httpClient.GetStringAsync(url);
                 var forecastData = JsonConvert.DeserializeObject<dynamic>(response);
+
+                if (forecastData == null) return null;
 
                 var forecast = new WeatherForecastResponse
                 {
@@ -90,9 +97,41 @@ namespace WeatherApp.Api.Services
                 forecast.Forecast = dailyForecasts.Values.OrderBy(f => f.Date).Take(5).ToList();
                 return forecast;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error getting weather forecast for location: {Location}", location);
                 return null;
+            }
+        }
+
+        public async Task<List<string>> GetPopularLocationsAsync()
+        {
+            // This could be enhanced to store popular locations in database
+            return new List<string>
+            {
+                "New York",
+                "London",
+                "Tokyo",
+                "Paris",
+                "Sydney",
+                "Mumbai",
+                "Berlin",
+                "Toronto",
+                "Dubai",
+                "Singapore"
+            };
+        }
+
+        public async Task<bool> IsValidLocationAsync(string location)
+        {
+            try
+            {
+                var weather = await GetCurrentWeatherAsync(location);
+                return weather != null;
+            }
+            catch
+            {
+                return false;
             }
         }
     }

@@ -1,6 +1,6 @@
-﻿namespace WeatherApp.Api.DTOs
+﻿namespace WeatherApp.Api.Core.Models
 {
-    public class WeatherResponse
+    public class WeatherData
     {
         public string LocationName { get; set; } = string.Empty;
         public double Temperature { get; set; }
@@ -12,13 +12,13 @@
         public DateTime DateTime { get; set; }
     }
 
-    public class WeatherForecastResponse
+    public class ForecastData
     {
         public string LocationName { get; set; } = string.Empty;
-        public List<ForecastDay> Forecast { get; set; } = new List<ForecastDay>();
+        public List<DailyForecast> Forecast { get; set; } = new();
     }
 
-    public class ForecastDay
+    public class DailyForecast
     {
         public DateTime Date { get; set; }
         public double TempMax { get; set; }
