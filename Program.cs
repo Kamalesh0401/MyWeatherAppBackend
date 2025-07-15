@@ -1,23 +1,23 @@
 // Program.cs
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using WeatherApp.Api.Data;
 using WeatherApp.Api.Hubs;
 using WeatherApp.Api.Middleware;
 using WeatherApp.Api.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container
+// Add services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add HttpClient for WeatherService
+// HttpClient
 builder.Services.AddHttpClient<WeatherService>();
 
-// Add CORS
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -28,10 +28,10 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Add SignalR
+// SignalR
 builder.Services.AddSignalR();
 
-// Add JWT Authentication
+// JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"];
 var issuer = jwtSettings["Issuer"];
@@ -53,7 +53,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// Register custom services
+// Custom Services
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddSingleton(new SqliteConnectionFactory(connectionString));
 builder.Services.AddScoped<DatabaseContext>();
@@ -64,37 +64,35 @@ builder.Services.AddScoped<ChatService>();
 
 var app = builder.Build();
 
-// Initialize database
+// Setup Render.com PORT (Render uses environment variable PORT)
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+app.Urls.Add($"http://*:{port}");
+
+// Initialize Database
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<DatabaseContext>();
     await dbContext.InitializeDatabaseAsync();
 }
 
-// Configure the HTTP request pipeline
+// Middlewares
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Optional: Remove if Render auto-handles HTTPS
+// app.UseHttpsRedirection();
 
-// Use CORS
 app.UseCors("AllowAll");
-
-// Use custom auth middleware
 app.UseMiddleware<AuthMiddleware>();
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
-// Map SignalR hub
 app.MapHub<ChatHub>("/chatHub");
 
-// Add a simple health check endpoint
-//app.MapGet("/health", () => "Weather App API is running!");
+// Health Check Endpoint (Optional)
+app.MapGet("/", () => "Weather App API is running on Render!");
 
 app.Run();
