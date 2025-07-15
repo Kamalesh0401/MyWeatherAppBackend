@@ -1,23 +1,22 @@
-# Build stage
+# Base build image
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+
 WORKDIR /app
 
-# Copy csproj and restore
-COPY *.csproj ./
-RUN dotnet restore
+# Copy everything
+COPY . .
 
-# Copy the rest of the code
-COPY . ./
+# Restore dependencies
+RUN dotnet restore MyWeatherApp.csproj
 
-# Publish the application
-RUN dotnet publish -c Release -o out
+# Build
+RUN dotnet publish MyWeatherApp.csproj -c Release -o out
 
-# Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+# Runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+
 WORKDIR /app
-ENV ASPNETCORE_URLS=http://+:5000
+
 COPY --from=build /app/out .
-
-EXPOSE 5000
 
 ENTRYPOINT ["dotnet", "MyWeatherApp.dll"]
