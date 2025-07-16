@@ -42,8 +42,8 @@ namespace WeatherApp.Api.Infrastructure.Repositories
             await connection.OpenAsync();
 
             var sql = @"SELECT Id, Username, Email, PasswordHash, FirstName, LastName, 
-                              Avatar, CreatedAt, UpdatedAt, IsActive 
-                       FROM Users WHERE Username = @username AND IsActive = 1";
+                        Avatar, CreatedAt, UpdatedAt, IsActive 
+                        FROM Users WHERE Username = @username AND IsActive = 1";
 
             using var command = new SQLiteCommand(sql, connection);
             command.Parameters.AddWithValue("@username", username);

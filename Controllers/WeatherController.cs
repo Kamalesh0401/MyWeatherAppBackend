@@ -43,7 +43,7 @@ namespace WeatherApp.Api.Controllers
         }
 
         [HttpGet("popular-locations")]
-        public async Task<ActionResult<List<string>>> GetPopularLocations()
+        public async Task<ActionResult<List<WeatherResponse>>> GetPopularLocations()
         {
             var locations = await _weatherService.GetPopularLocationsAsync();
             return Ok(locations);

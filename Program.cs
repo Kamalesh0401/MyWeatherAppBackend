@@ -1,113 +1,11 @@
-﻿//// Program.cs
-//using System.Text;
-//using Microsoft.IdentityModel.Tokens;
-//using Microsoft.AspNetCore.Authentication.JwtBearer;
-//using WeatherApp.Api.Middleware;
-//using WeatherApp.Api.Services;
-//using MyWeatherApp.Infrastructure.Data;
-//using WeatherApp.Api.Extensions;
-
-//var builder = WebApplication.CreateBuilder(args);
-
-//// Add services
-//builder.Services.AddControllers();
-//builder.Services.AddApplicationServices();
-//builder.Services.AddEndpointsApiExplorer();
-//builder.Services.AddSwaggerGen();
-
-//// HttpClient
-//builder.Services.AddHttpClient<WeatherService>();
-
-//// CORS
-//builder.Services.AddCors(options =>
-//{
-//    options.AddPolicy("AllowAll", policy =>
-//    {
-//        policy.AllowAnyOrigin()
-//              .AllowAnyMethod()
-//              .AllowAnyHeader();
-//    });
-//});
-
-//// SignalR
-//builder.Services.AddSignalR();
-
-//// JWT Authentication
-//var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-//var secretKey = jwtSettings["SecretKey"];
-//var issuer = jwtSettings["Issuer"];
-//var audience = jwtSettings["Audience"];
-
-//builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-//    .AddJwtBearer(options =>
-//    {
-//        options.TokenValidationParameters = new TokenValidationParameters
-//        {
-//            ValidateIssuerSigningKey = true,
-//            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-//            ValidateIssuer = true,
-//            ValidIssuer = issuer,
-//            ValidateAudience = true,
-//            ValidAudience = audience,
-//            ValidateLifetime = true,
-//            ClockSkew = TimeSpan.Zero
-//        };
-//    });
-
-//// Custom Services
-//var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-//builder.Services.AddSingleton(new SqliteConnectionFactory(connectionString));
-//builder.Services.AddScoped<DatabaseInitializer>();
-//builder.Services.AddScoped<TokenService>();
-//builder.Services.AddScoped<AuthService>();
-//builder.Services.AddScoped<WeatherService>();
-//builder.Services.AddScoped<ChatService>();
-
-//var app = builder.Build();
-
-//// Setup Render.com PORT (Render uses environment variable PORT)
-//var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
-//app.Urls.Add($"http://*:{port}");
-
-//// Initialize Database
-//using (var scope = app.Services.CreateScope())
-//{
-//    var dbContext = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
-//    await dbContext.InitializeDatabaseAsync();
-//}
-
-//// Middlewares
-//if (app.Environment.IsDevelopment())
-//{
-//    app.UseSwagger();
-//    app.UseSwaggerUI();
-//}
-
-//// Optional: Remove if Render auto-handles HTTPS
-//// app.UseHttpsRedirection();
-
-//app.UseCors("AllowAll");
-//app.UseMiddleware<JwtMiddleware>();
-//app.UseAuthentication();
-//app.UseAuthorization();
-//app.MapControllers();
-//app.MapHub<ChatHub>("/chatHub");
-
-//// Health Check Endpoint (Optional)
-//app.MapGet("/", () => "Weather App API is running on Render!");
-
-//app.Run();
-
-
-
-using System.Text;
+﻿using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using MyWeatherApp.Infrastructure.Data;
 using WeatherApp.Api.Extensions;
-using MyWeatherApp.Infrastructure.Data; // Fixed namespace
+using WeatherApp.Api.Infrastructure.Data; // Use consistent namespace
 using WeatherApp.Api.Middleware;
-using WeatherApp.Api.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -151,7 +49,8 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-builder.Services.AddApplicationServices();
+// Add your application services here instead of extension method
+ builder.Services.AddApplicationServices();
 
 // CORS Configuration
 builder.Services.AddCors(options =>
@@ -201,7 +100,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             {
                 var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
-
                 if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/chatHub"))
                 {
                     context.Token = accessToken;
@@ -223,9 +121,12 @@ builder.Services.AddScoped<DatabaseInitializer>();
 
 var app = builder.Build();
 
-// Setup Render.com PORT (Render uses environment variable PORT)
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
-app.Urls.Add($"http://*:{port}");
+// Only set PORT for production (Render.com)
+if (!app.Environment.IsDevelopment())
+{
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+    app.Urls.Add($"http://*:{port}");
+}
 
 // Initialize Database
 using (var scope = app.Services.CreateScope())
@@ -242,13 +143,14 @@ if (app.Environment.IsDevelopment())
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Weather API V1");
         c.RoutePrefix = string.Empty; // Serve Swagger UI at the app's root
+        //Swagger URL : http://localhost:5000/swagger/index.html
     });
 }
 
 // Middleware pipeline order is important
 app.UseCors("AllowAll");
 
-// Custom JWT middleware (if needed)
+// Custom JWT middleware (if needed) - comment out if JwtMiddleware doesn't exist
 app.UseMiddleware<JwtMiddleware>();
 
 app.UseAuthentication();
@@ -260,8 +162,10 @@ app.MapControllers();
 // app.MapHub<ChatHub>("/chatHub");
 
 // Health Check Endpoint
-app.MapGet("/", () => "Weather App API is running on Render!");
-
+app.MapGet("/", () => "Weather App API is running!");
 app.MapGet("/health", () => new { Status = "Healthy", Timestamp = DateTime.UtcNow });
 
 app.Run();
+
+
+

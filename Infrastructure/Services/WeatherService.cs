@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using WeatherApp.Api.Core.DTOs;
 using WeatherApp.Api.Core.Interfaces.Services;
+using WeatherApp.Api.Core.Models;
 
 namespace WeatherApp.Api.Infrastructure.Services
 {
@@ -104,21 +105,80 @@ namespace WeatherApp.Api.Infrastructure.Services
             }
         }
 
-        public async Task<List<string>> GetPopularLocationsAsync()
+
+        //public async Task<List<WeatherResponse>> GetPopularLocationsAsync()
+        //{
+        //    try
+        //    {
+        //        var locations = await GetPopularLocations();
+
+        //        // Start all the weather fetch tasks in parallel
+        //        var weatherTasks = locations.Select(location => GetCurrentWeatherAsync(location)).ToList();
+
+        //        // Await all tasks to complete
+        //        var weatherData = await Task.WhenAll(weatherTasks);
+
+        //        return weatherData.ToList();
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error getting weather for popular locations");
+        //        return new List<WeatherResponse>(); // Return empty list instead of null (better practice)
+        //    }
+        //}
+
+
+        public async Task<List<WeatherResponse>> GetPopularLocationsAsync()
         {
-            // This could be enhanced to store popular locations in database
+            var weatherData = new List<WeatherResponse>();
+            var locations = await GetPopularLocations();
+
+            var weatherTasks = locations.Select(async location =>
+            {
+                try
+                {
+                    var weather = await GetCurrentWeatherAsync(location);
+                    return weather;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to fetch weather for {Location}", location);
+                    return null; // Skip this location if it fails
+                }
+            }).ToList();
+
+            var results = await Task.WhenAll(weatherTasks);
+
+            // Filter out failed (null) results
+            weatherData = results.Where(result => result != null).ToList();
+
+            return weatherData;
+        }
+
+
+
+        public async Task<List<string>> GetPopularLocations()
+        {
             return new List<string>
             {
-                "New York",
-                "London",
-                "Tokyo",
-                "Paris",
-                "Sydney",
+                //"New York",
+                //"London",
+                //"Tokyo",
+                //"Paris",
+                //"Sydney",
+                //"Mumbai",
+                //"Berlin",
+                //"Toronto",
+                //"Dubai",
+                //"Singapore"
+
+                "Bangalore",
+                "Chennai",
                 "Mumbai",
-                "Berlin",
-                "Toronto",
-                "Dubai",
-                "Singapore"
+                "Hyderabad",
+                "Delhi",
+                "Kolkata",
+                "Pune",
             };
         }
 

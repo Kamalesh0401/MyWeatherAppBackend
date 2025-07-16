@@ -21,7 +21,7 @@ namespace WeatherApp.Api.Middleware
         {
             var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
 
-            if (token != null)
+            if (!string.IsNullOrEmpty(token))
             {
                 AttachUserToContext(context, token);
             }
@@ -54,7 +54,7 @@ namespace WeatherApp.Api.Middleware
                 context.Items["UserId"] = userId;
                 context.Items["Username"] = username;
             }
-            catch
+            catch(Exception ex)
             {
                 // Invalid token
             }

@@ -6,7 +6,7 @@ namespace WeatherApp.Api.Core.Interfaces.Services
     {
         Task<WeatherResponse?> GetCurrentWeatherAsync(string location);
         Task<WeatherForecastResponse?> GetWeatherForecastAsync(string location);
-        Task<List<string>> GetPopularLocationsAsync();
+        Task<List<WeatherResponse>> GetPopularLocationsAsync();
         Task<bool> IsValidLocationAsync(string location);
     }
 }
